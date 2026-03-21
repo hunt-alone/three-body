@@ -28,7 +28,6 @@ dist-ssr
 
 # Large binary files
 *.tif
-*.png
 
 # Generated widget
 three-body.widget/
