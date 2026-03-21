@@ -24,16 +24,16 @@ export const className = `
   width: 100%; height: 100%;
   margin: 0; padding: 0; overflow: hidden;
 `;
-let htmlContent = '';
 export const init = (dispatch) => {
   const dir = '/Users/html/Library/Application Support/Übersicht/widgets/three-body.widget';
-  run(`cat "${dir}/lib/index.html"`).then((output) => dispatch({ type: 'HTML_LOADED', html: output }));
+  run(`cat "${dir}/lib/index.html"`).then((output) => dispatch({ type: 'LOADED', content: output }));
 };
-export const updateState = (event, prev) => event.type === 'HTML_LOADED' ? { loaded: true, html: event.html } : prev;
-export const initialState = { loaded: false, html: '' };
-export const render = ({ loaded, html }) => loaded
-  ? <iframe srcDoc={html} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'all' }} />
-  : <div style={{ color: '#fff' }}>Loading...</div>;
+export const updateState = (event, prev) => event.type === 'LOADED' ? { ready: true, content: event.content } : prev;
+export const initialState = { ready: false, content: '' };
+export const render = ({ ready, content }) => {
+  if (!ready) return <div style={{ color: '#fff' }}>Loading...</div>;
+  return <iframe srcDoc={content} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'all' }} />;
+};
 JSX
   echo "Created index.jsx"
 fi
