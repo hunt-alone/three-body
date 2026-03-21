@@ -9,6 +9,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { Body, Vec3 } from './physics';
 import { computeCenterOfMass } from './physics';
+import panoramaUrl from '/eso0932a-small.jpg?inline';
 
 // ── Module state ──
 let threeRenderer: THREE.WebGLRenderer;
@@ -602,11 +603,11 @@ function updateTrail(index: number, trail: Vec3[], bodyColor: Vec3) {
     );
 
     // Color: blend toward white at newest end
-    const brightness = 0.15 + age * 0.85; // gentle linear: 0.15 → 1.0
+    const brightness = 0.45 + age * 0.55; // 0.45→1.0, all above bloom threshold
     const r = Math.min(1, bodyColor.x + (1 - bodyColor.x) * brightness * 0.2);
     const g = Math.min(1, bodyColor.y + (1 - bodyColor.y) * brightness * 0.2);
     const b = Math.min(1, bodyColor.z + (1 - bodyColor.z) * brightness * 0.2);
-    const a = (0.2 + age * 0.8) * dimFactor; // opacity: 0.2 → 1.0
+    const a = (0.4 + age * 0.6) * dimFactor; // opacity: 0.4→1.0
     colors.push(r * a, g * a, b * a, r * a, g * a, b * a);
   }
 
@@ -636,7 +637,7 @@ export function initRenderer(canvas: HTMLCanvasElement) {
 
   // Load ESO panorama texture for 'panorama' background mode
   const loader = new THREE.TextureLoader();
-  loader.load('/eso0932a.jpg', (tex) => {
+  loader.load(panoramaUrl, (tex) => {
     tex.mapping = THREE.EquirectangularReflectionMapping;
     tex.colorSpace = THREE.SRGBColorSpace;
     panoramaTexture = tex;

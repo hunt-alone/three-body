@@ -187,6 +187,11 @@ function App() {
     const resize = () => resizeRenderer(window.innerWidth, window.innerHeight);
     window.addEventListener('resize', resize);
 
+    // Temperature history for era stability detection
+    const tempHistory: number[] = [];
+    const TEMP_HISTORY_LEN = 60; // ~1 second of frames
+    let prevTemp = 0;
+
     const loop = (now: number) => {
       const frametime = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
@@ -238,7 +243,7 @@ function App() {
       if (clockSecsRef.current) clockSecsRef.current.textContent = seconds;
       if (clockDateRef.current) clockDateRef.current.textContent = dateStr;
 
-      // World data
+      // World data — temperature, era, state
       const bodies = bodiesRef.current;
       const planet = bodies[3];
       const d = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) =>
@@ -246,15 +251,38 @@ function App() {
       const dAlpha = d(planet, bodies[0]);
       const dBeta = d(planet, bodies[1]);
       const dGamma = d(planet, bodies[2]);
+
+      // Temperature: Stefan-Boltzmann — radiation ∝ L/d², T ∝ radiation^0.25
+      // Scale so typical distances (~1-3) give -40°C to +300°C range
       const radiation = bodies[0].mass / (dAlpha * dAlpha + 0.01)
         + bodies[1].mass / (dBeta * dBeta + 0.01)
         + bodies[2].mass / (dGamma * dGamma + 0.01);
-      const temperature = -80 + radiation * 3.5;
-      const dMean = (dAlpha + dBeta + dGamma) / 3;
-      const dVar = ((dAlpha - dMean) ** 2 + (dBeta - dMean) ** 2 + (dGamma - dMean) ** 2) / 3;
-      const isStable = dVar / (dMean * dMean + 0.01) < 0.15;
-      const isHabitable = temperature > -20 && temperature < 60;
+      const temperature = Math.pow(radiation * 0.8, 0.25) * 180 - 120;
 
+      // Track temperature history for stability
+      tempHistory.push(temperature);
+      if (tempHistory.length > TEMP_HISTORY_LEN) tempHistory.shift();
+
+      // Rate of temperature change (smoothed)
+      const tempDelta = Math.abs(temperature - prevTemp) / Math.max(frametime, 0.001);
+      prevTemp = temperature;
+
+      // Era: stable when temperature is moderate AND changing slowly
+      // In the novel, stable era = suns behave predictably, liveable conditions
+      const tempVariance = tempHistory.length > 10
+        ? tempHistory.reduce((sum, t) => {
+            const mean = tempHistory.reduce((s, v) => s + v, 0) / tempHistory.length;
+            return sum + (t - mean) ** 2;
+          }, 0) / tempHistory.length
+        : 999;
+      const isStable = tempVariance < 400 && tempDelta < 200 && temperature > -30 && temperature < 80;
+
+      // State: directly tied to temperature
+      // Habitable range: -10°C to 45°C → rehydration (浸泡, liquid water exists)
+      // Outside range → dehydration (脱水, survival mode)
+      const isHabitable = temperature > -10 && temperature < 45;
+
+      // DOM updates
       if (eraRef.current) eraRef.current.textContent = isStable ? 'Stable Era' : 'Chaotic Era';
       if (eraLabelRef.current) {
         eraLabelRef.current.textContent = isStable ? '恒纪元' : '乱纪元';
@@ -267,7 +295,11 @@ function App() {
       }
       if (tempRef.current) {
         tempRef.current.textContent = `${temperature.toFixed(1)}°C`;
-        tempRef.current.style.color = temperature > 60 ? 'rgba(255, 120, 80, 0.8)' : temperature < -20 ? 'rgba(100, 160, 255, 0.8)' : 'rgba(200, 220, 200, 0.7)';
+        // Color: blue < -10, green -10~45, orange 45~100, red > 100
+        tempRef.current.style.color = temperature > 100 ? 'rgba(255, 80, 50, 0.9)'
+          : temperature > 45 ? 'rgba(255, 160, 80, 0.8)'
+          : temperature < -10 ? 'rgba(100, 160, 255, 0.8)'
+          : 'rgba(100, 200, 140, 0.7)';
       }
       const maxDist = 5;
       const pct = (v: number) => Math.min(v / maxDist, 1) * 100;
