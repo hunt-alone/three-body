@@ -2,6 +2,8 @@
 
 基于 Three.js 的实时三体引力模拟，支持作为 macOS 桌面壁纸运行。
 
+**在线体验：[3body.mhunter.cn](https://3body.mhunter.cn)**
+
 ![Three-Body](https://img.shields.io/badge/Three.js-r183-blue) ![React](https://img.shields.io/badge/React-19-blue) ![Vite](https://img.shields.io/badge/Vite-8-purple)
 
 ## 特性
