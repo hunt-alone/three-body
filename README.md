@@ -4,6 +4,8 @@
 
 **在线体验：[3body.mhunter.cn](https://3body.mhunter.cn)**
 
+![效果图](./screenshot1.png)
+
 ![Three-Body](https://img.shields.io/badge/Three.js-r183-blue) ![React](https://img.shields.io/badge/React-19-blue) ![Vite](https://img.shields.io/badge/Vite-8-purple)
 
 ## 特性
@@ -37,6 +39,8 @@ npm run build
 ```
 
 ## 作为 macOS 桌面壁纸使用
+
+![效果图](./screenshot2.png)
 
 ### 1. 安装 Übersicht
 
