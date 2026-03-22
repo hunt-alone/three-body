@@ -20,6 +20,7 @@ interface StoredSettings {
   mouseFollowSpeed: number;
   bloomStrength: number;
   starSpikes: boolean;
+  autoRestart?: boolean;
 }
 
 interface StoredCiv {
@@ -77,6 +78,7 @@ function App() {
   const mouseFollowSpeedRef = useRef(saved?.mouseFollowSpeed ?? 0.15);
   const bloomStrengthRef = useRef(saved?.bloomStrength ?? 0.8);
   const starSpikesRef = useRef(saved?.starSpikes ?? true);
+  const autoRestartRef = useRef(saved?.autoRestart ?? false);
   const cameraDistanceRef = useRef(saved?.cameraDistance ?? 1.0);
   const bgModeRef = useRef<BgMode>(saved?.bgMode ?? 'panorama');
   const bgCustomColorRef = useRef(saved?.bgCustomColor ?? '#000000');
@@ -119,6 +121,7 @@ function App() {
       mouseFollowSpeed: mouseFollowSpeedRef.current,
       bloomStrength: bloomStrengthRef.current,
       starSpikes: starSpikesRef.current,
+      autoRestart: autoRestartRef.current,
     });
   }, []);
 
@@ -149,6 +152,7 @@ function App() {
     mouseFollowSpeedRef.current = 0.15;
     bloomStrengthRef.current = 0.8;
     starSpikesRef.current = true;
+    autoRestartRef.current = false;
     cameraDistanceRef.current = 1.0;
     bgModeRef.current = 'panorama';
     bgCustomColorRef.current = '#000000';
@@ -219,11 +223,25 @@ function App() {
       }
 
       if (!introRef.current && !divergedRef.current && checkDivergence(bodiesRef.current, configRef.current)) {
-        divergedRef.current = true;
         const civDuration = timeRef.current - civStartTimeRef.current;
         civYearsRef.current = Math.round(civDuration * CIV_TIME_SCALE);
+        civCountRef.current += 1;
         setCivInfo({ count: civCountRef.current, years: civYearsRef.current });
-        setDiverged(true);
+        saveCiv({ count: civCountRef.current });
+        if (autoRestartRef.current) {
+          // Auto-restart: reset immediately without showing overlay
+          bodiesRef.current = createSystem(configRef.current);
+          resetCamera();
+          rotation.current = { x: 0, y: 0 };
+          setRotation(0, 0);
+          timeRef.current = 0;
+          introRef.current = true;
+          introStartRef.current = performance.now();
+          civStartTimeRef.current = 0;
+        } else {
+          divergedRef.current = true;
+          setDiverged(true);
+        }
       }
 
       render(bodiesRef.current, window.innerWidth, window.innerHeight, timeRef.current);
@@ -471,6 +489,11 @@ function App() {
               <input type="checkbox" id="trailEnabled" checked={cfg.trailEnabled}
                 onChange={e => updateConfig('trailEnabled', e.target.checked)} />
               <label htmlFor="trailEnabled">显示轨迹 Trail</label>
+            </div>
+            <div className="checkbox-row">
+              <input type="checkbox" id="autoRestart" checked={autoRestartRef.current}
+                onChange={e => { autoRestartRef.current = e.target.checked; persistSettings(); forceUpdate(n => n + 1); }} />
+              <label htmlFor="autoRestart">发散后自动重启 Auto-restart</label>
             </div>
           </div>
 
