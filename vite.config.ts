@@ -1,12 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { viteSingleFile } from 'vite-plugin-singlefile'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), viteSingleFile()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    // singlefile only for widget deploy (DEPLOY=1 npx vite build)
+    ...(process.env.DEPLOY === '1'
+      ? [import('vite-plugin-singlefile').then(m => m.viteSingleFile())]
+      : []),
+  ],
   base: './',
   build: {
-    assetsInlineLimit: 1024 * 1024, // inline assets up to 1MB as base64
+    assetsInlineLimit: process.env.DEPLOY === '1' ? 1024 * 1024 : 4096,
   },
-})
+}))

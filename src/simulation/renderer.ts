@@ -549,45 +549,46 @@ function updateTrail(index: number, trail: Vec3[], bodyColor: Vec3) {
 
   // Planet trail: use only last portion for shorter trail
   const maxLen = isPlanet ? Math.min(trail.length, 120) : trail.length;
-  const trailSlice = trail.length > maxLen ? trail.slice(trail.length - maxLen) : trail;
+  const startIdx = trail.length > maxLen ? trail.length - maxLen : 0;
+  const len = trail.length - startIdx;
 
-  if (trailSlice.length < 3) {
+  if (len < 3) {
     mesh.visible = false;
     return;
   }
   mesh.visible = true;
 
-  const dimFactor = isPlanet ? 0.3 : 1.0; // planet trail much dimmer
-
-  const len = trailSlice.length;
-  const positions: number[] = [];
-  const colors: number[] = [];
+  const dimFactor = isPlanet ? 0.3 : 1.0;
+  const vertCount = len * 2;
+  const posArr = new Float32Array(vertCount * 3);
+  const colArr = new Float32Array(vertCount * 3);
   const camPos = camera.position;
 
   for (let i = 0; i < len; i++) {
-    const age = i / (len - 1); // 0=oldest 1=newest
+    const si = startIdx + i;
+    const age = i / (len - 1);
     const halfWidth = (0.003 + age * (isPlanet ? 0.005 : 0.01));
 
     // Tangent
     let tx: number, ty: number, tz: number;
     if (i === 0) {
-      tx = trailSlice[1].x - trailSlice[0].x;
-      ty = trailSlice[1].y - trailSlice[0].y;
-      tz = trailSlice[1].z - trailSlice[0].z;
+      tx = trail[si + 1].x - trail[si].x;
+      ty = trail[si + 1].y - trail[si].y;
+      tz = trail[si + 1].z - trail[si].z;
     } else if (i === len - 1) {
-      tx = trailSlice[i].x - trailSlice[i - 1].x;
-      ty = trailSlice[i].y - trailSlice[i - 1].y;
-      tz = trailSlice[i].z - trailSlice[i - 1].z;
+      tx = trail[si].x - trail[si - 1].x;
+      ty = trail[si].y - trail[si - 1].y;
+      tz = trail[si].z - trail[si - 1].z;
     } else {
-      tx = trailSlice[i + 1].x - trailSlice[i - 1].x;
-      ty = trailSlice[i + 1].y - trailSlice[i - 1].y;
-      tz = trailSlice[i + 1].z - trailSlice[i - 1].z;
+      tx = trail[si + 1].x - trail[si - 1].x;
+      ty = trail[si + 1].y - trail[si - 1].y;
+      tz = trail[si + 1].z - trail[si - 1].z;
     }
 
     // View direction
-    const vx = camPos.x - trailSlice[i].x;
-    const vy = camPos.y - trailSlice[i].y;
-    const vz = camPos.z - trailSlice[i].z;
+    const vx = camPos.x - trail[si].x;
+    const vy = camPos.y - trail[si].y;
+    const vz = camPos.z - trail[si].z;
 
     // Perpendicular = tangent × view
     let nx = ty * vz - tz * vy;
@@ -597,30 +598,37 @@ function updateTrail(index: number, trail: Vec3[], bodyColor: Vec3) {
     if (nLen > 1e-4) { nx /= nLen; ny /= nLen; nz /= nLen; }
     else { nx = 0; ny = 1; nz = 0; }
 
-    positions.push(
-      trailSlice[i].x + nx * halfWidth, trailSlice[i].y + ny * halfWidth, trailSlice[i].z + nz * halfWidth,
-      trailSlice[i].x - nx * halfWidth, trailSlice[i].y - ny * halfWidth, trailSlice[i].z - nz * halfWidth,
-    );
+    const pi = i * 6; // 2 verts × 3 components
+    posArr[pi]     = trail[si].x + nx * halfWidth;
+    posArr[pi + 1] = trail[si].y + ny * halfWidth;
+    posArr[pi + 2] = trail[si].z + nz * halfWidth;
+    posArr[pi + 3] = trail[si].x - nx * halfWidth;
+    posArr[pi + 4] = trail[si].y - ny * halfWidth;
+    posArr[pi + 5] = trail[si].z - nz * halfWidth;
 
-    // Color: blend toward white at newest end
-    const brightness = 0.45 + age * 0.55; // 0.45→1.0, all above bloom threshold
+    // Color
+    const brightness = 0.45 + age * 0.55;
     const r = Math.min(1, bodyColor.x + (1 - bodyColor.x) * brightness * 0.2);
     const g = Math.min(1, bodyColor.y + (1 - bodyColor.y) * brightness * 0.2);
     const b = Math.min(1, bodyColor.z + (1 - bodyColor.z) * brightness * 0.2);
-    const a = (0.4 + age * 0.6) * dimFactor; // opacity: 0.4→1.0
-    colors.push(r * a, g * a, b * a, r * a, g * a, b * a);
+    const a = (0.4 + age * 0.6) * dimFactor;
+    const ci = i * 6;
+    colArr[ci] = r * a; colArr[ci + 1] = g * a; colArr[ci + 2] = b * a;
+    colArr[ci + 3] = r * a; colArr[ci + 4] = g * a; colArr[ci + 5] = b * a;
   }
 
-  const indices: number[] = [];
-  for (let i = 0; i < len - 1; i++) {
-    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
-    indices.push(a, b, c, b, d, c);
+  const idxCount = (len - 1) * 6;
+  const idxArr = new Uint16Array(idxCount);
+  for (let i = 0, j = 0; i < len - 1; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    idxArr[j++] = a; idxArr[j++] = b; idxArr[j++] = c;
+    idxArr[j++] = b; idxArr[j++] = d; idxArr[j++] = c;
   }
 
   const geo = mesh.geometry as THREE.BufferGeometry;
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geo.setIndex(indices);
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colArr, 3));
+  geo.setIndex(new THREE.Uint16BufferAttribute(idxArr, 1));
   geo.computeBoundingSphere();
 }
 
@@ -736,16 +744,25 @@ export function disposeRenderer() {
   scene.traverse((obj) => {
     if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
       obj.geometry.dispose();
-      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-      else obj.material.dispose();
+      if (Array.isArray(obj.material)) obj.material.forEach(m => {
+        m.map?.dispose();
+        m.dispose();
+      });
+      else {
+        (obj.material as THREE.Material & { map?: THREE.Texture }).map?.dispose();
+        obj.material.dispose();
+      }
     }
     if (obj instanceof THREE.Sprite) {
+      obj.material.map?.dispose();
       obj.material.dispose();
     }
   });
   glowTexture?.dispose();
   spikeTextures.forEach(t => t.dispose());
   spikeTextures.length = 0;
+  panoramaTexture?.dispose();
+  panoramaTexture = null;
   composer.dispose();
   threeRenderer.dispose();
   bodyMeshes.length = 0;

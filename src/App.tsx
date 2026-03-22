@@ -122,7 +122,8 @@ function App() {
     });
   }, []);
 
-  const resetSim = useCallback(() => {
+  // Shared simulation restart logic
+  const restartSimulation = useCallback(() => {
     bodiesRef.current = createSystem(configRef.current);
     resetCamera();
     rotation.current = { x: 0, y: 0 };
@@ -132,11 +133,15 @@ function App() {
     timeRef.current = 0;
     introRef.current = true;
     introStartRef.current = performance.now();
-    civCountRef.current += 1;
     civStartTimeRef.current = 0;
+  }, []);
+
+  const resetSim = useCallback(() => {
+    civCountRef.current += 1;
     setCivInfo({ count: civCountRef.current, years: 0 });
     saveCiv({ count: civCountRef.current });
-  }, []);
+    restartSimulation();
+  }, [restartSimulation]);
 
   const resetConfig = useCallback(() => {
     configRef.current = { ...DEFAULT_CONFIG };
@@ -155,19 +160,9 @@ function App() {
     setCivInfo({ count: 1, years: 0 });
     saveCiv({ count: 1 });
     persistSettings();
-    // Reset simulation with new defaults
-    bodiesRef.current = createSystem(configRef.current);
-    resetCamera();
-    rotation.current = { x: 0, y: 0 };
-    setRotation(0, 0);
-    setDiverged(false);
-    divergedRef.current = false;
-    timeRef.current = 0;
-    introRef.current = true;
-    introStartRef.current = performance.now();
-    civStartTimeRef.current = 0;
+    restartSimulation();
     forceUpdate(n => n + 1);
-  }, [persistSettings]);
+  }, [persistSettings, restartSimulation]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -268,12 +263,15 @@ function App() {
       prevTemp = temperature;
 
       // Era: stable when temperature is moderate AND changing slowly
-      // In the novel, stable era = suns behave predictably, liveable conditions
       const tempVariance = tempHistory.length > 10
-        ? tempHistory.reduce((sum, t) => {
-            const mean = tempHistory.reduce((s, v) => s + v, 0) / tempHistory.length;
-            return sum + (t - mean) ** 2;
-          }, 0) / tempHistory.length
+        ? (() => {
+            let sum = 0;
+            for (let i = 0; i < tempHistory.length; i++) sum += tempHistory[i];
+            const mean = sum / tempHistory.length;
+            let vari = 0;
+            for (let i = 0; i < tempHistory.length; i++) vari += (tempHistory[i] - mean) ** 2;
+            return vari / tempHistory.length;
+          })()
         : 999;
       const isStable = tempVariance < 400 && tempDelta < 200 && temperature > -30 && temperature < 80;
 

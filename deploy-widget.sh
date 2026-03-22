@@ -7,7 +7,7 @@ WIDGET_DIR="$SCRIPT_DIR/three-body.widget"
 
 echo "Building..."
 cd "$SCRIPT_DIR"
-npx vite build 2>&1 | tail -3
+DEPLOY=1 npx vite build 2>&1 | tail -3
 
 echo "Generating widget..."
 mkdir -p "$WIDGET_DIR/lib"
